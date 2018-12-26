@@ -207,22 +207,11 @@ Returns the lower 8-bits of the last 12-bit ADC sample requested.
 This 8-bit register provides details on the last ADC conversion, and has the
 following format:
 
-+-------------+-----------------------------------+
 | Bit(s)      | Description                       |
-+-------------+-----------------------------------+
+|-------------|-----------------------------------|
 | 0           | Overrun Flag (1=overrun occurred) |
-+-------------+-----------------------------------+
 | 1:4         | ADC Channel (0..7)                |
-+-------------+-----------------------------------+
 | 5:7         | Reserved                          |
-+-------------+-----------------------------------+
-
-
-
-
-
-
-
 
 # Example Code
 
