@@ -6,6 +6,9 @@ to behave similar to most I2C sensors, in that you interact with the
 coprocessor via a series of register reads and writes from any standard I2C
 master.
 
+Project files are based on [MCUXpresso IDE](https://www.nxp.com/support/developer-resources/software-development-tools/mcuxpresso-software-and-tools/mcuxpresso-integrated-development-environment-ide:MCUXpresso-IDE),
+available free of charge from NXP.
+
 ### Design Goal
 
 The main purpose of this demo is to enable the use of the low-cost but
