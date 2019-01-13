@@ -24,7 +24,32 @@ the same system by changing the I2C address accepted by the LPC845.
 
 ### Hardware Setup
 
-TODO: Picture of LPC845 DIP board highlighting pins used.
+This demo makes use of two pins for the I2C bus, plus the common GND pin.
+
+You **MAY** also need **two 4.7K pullup resistors**, which are required on
+the I2C bus to pull the SCL and SDA pins to logic high (connect the resistor
+between SCL and VDD, and SD and VDD). The I2C master (the device you are
+connecting the LPC845 to) may or may not have these available. If no pullups
+are present, the I2C bus won't work, but you will need to verify this on the
+platform you are using as the I2C Master.
+
+| Function | LPC845 Breakout | Notes                                |
+|----------|-----------------|--------------------------------------|
+| **SCL**  | P0_10 (Pin 23)  | **MAY** require a 4.7K pullup to VDD |
+| **SDA**  | P0_11 (Pin 24)  | **MAY** require a 4.7K pullup to VDD |
+| **GND**  | GND (Pin 20)    | --                                   |
+
+#### ADC Input (Optional)
+
+The examples later in this readme use the ADC registers on the I2C
+co-processor, so you may want to connect the `ADC CH0` to an appropriate
+load using the following pin:
+
+| Function | LPC845 Breakout | Notes                                |
+|----------|-----------------|--------------------------------------|
+| **ADC**  | P0_07 (Pin 32)  | ADC input used by the ADC commands   |
+
+![LPC845 Breakout Pinout](lpc845_pinout.png "LPC845 Breakout Pinout")
 
 # Architecture
 
@@ -219,7 +244,33 @@ The `doc/examples` folder contains a number of examples of how to communicate
 with the LPC845 coprocessor over I2C using a variety of comman platforms. See
 the specific sub-folder(s) for further details.
 
-## Arduino (Wire)
+## Arduino
+
+You can easily connect the LPC845 I2C Co-processor the the Arduino using the
+standard I2C pins (SCL and SDA).
+
+### Hardware Setup
+
+You will need to connect SCL on the Arduino to SCL on the LPC845, and SDA on
+the Arduino to SDA on the LPC845:
+
+| Func. | Arduino | LPC845 Breakout |
+|-------|---------|-----------------|
+| SCL   | SCL     | P0_10 (Pin 23)  |
+| SDA   | SDA     | P0_11 (Pin 24)  |
+| GND   | GND     | GND (Pin 20)    |
+
+
+There are **no 4.7K pullups on the Arduino by default**, so you will also need
+to add two 4.7K (or similar) pullup resistors **between** the following pins:
+
+- SCL and 3.3V (`o SCL ---[ 4.7K ]--- 3.3V o`)
+- SDA and 3.3V (`o SDA ---[ 4.7K ]--- 3.3V o`)
+
+### Example Code
+
+Run the following sketch on your Arduino once you have connected the two
+boards are described above:
 
 ```
 #include <Arduino.h>
@@ -343,4 +394,119 @@ void loop()
 
 ## Raspbery Pi (Python)
 
-ToDo
+The Raspberry Pi contains HW I2C pins and support, meaning that you can
+communicate with the LPC845 I2C co-processor by connecting the LPC845 to
+the RPi using the **SCL** and **SDA** pins, and send and receive data in
+C or Python (or most other languages).
+
+### Hardware Setup
+
+The following pins should be connected.
+
+| Func. | Raspberry Pi              | LPC845 Breakout |
+|-------|---------------------------|-----------------|
+| SCL   | **3** (See image below)   | P0_10 (Pin 23)  |
+| SDA   | **2** (See image below)   | P0_11 (Pin 24)  |
+| GND   | GND (Black pins below)    | GND (Pin 20)    |
+
+SCL (3) and SDA (2) **ALREADY HAVE 1.8K pullups to 3.3V**, so no additional
+connections or components are required here! The I2C pins can be connected
+directly together between the RPi and the LPC845, and the I2C bus will be
+automatically pulled high by default.
+
+![Raspberry Pi Pinout](rpi_pinout.png "Raspberry Pi Pinout")
+
+### Initial Raspberry Pi Setup Notes
+
+If you've setup a new Raspberry Pi using Raspbian, and you don't have it hooked
+up to a display or keyboard, you can use a USB serial adapter (FTDI, etc.) and
+connect to the TTY UART pins on the RPi:
+
+- **BCM14** (TXD)
+- **BCM15** (RXD)
+
+With the cable connected between your desktop and the RPi, you can run a
+terminal emulator on your desktop at `115200` baud. For OS X or Linux, for
+example, you could use `minicom` (OPT+X to exit!):
+
+```
+$ minicom -D /dev/tty.usbserial -b 115200
+````
+
+When prompted for a login, the default username and password are
+
+- **Username**: `pi`
+- **Password**: `raspberry`.
+
+### Network Access
+
+You will require **network access** for the `apt-get install` commands below.
+
+If you need help setting WiFi up, see [Setting WiFi up via the command line](https://www.raspberrypi.org/documentation/configuration/wireless/wireless-cli.md).
+
+Once network access has been established, the following commands should be run
+on the RPi to enable I2C support if it hasn't previously been enabled:
+
+### RPi I2C Prerequisites (Raspbian)
+
+#### 1. Enable I2C on the RPi
+
+Before you can use I2C, you will need to enable it on the device. Run:
+
+```
+$ sudo raspi-config
+```
+
+Then select `Interfacing Options`,  `I2C`, and select `Yes` when asked
+`Would you like the ARM I2C interface to be enabled?`.
+
+#### 2. Install `i2c-tools`
+```
+$ sudo apt-get install i2c-tools
+```
+
+#### 3. Install `python-smbus`
+
+Finally, you should install the `smbus` library for Python if you wish to
+access I2C using Python:
+
+```
+$ sudo apt-get install python-smbus
+```
+
+### Example Code (Python)
+
+The following python code will connect to the LPC845 I2C co-processor and
+perform a few basic read and write requests:
+
+```
+import sys
+import time
+import smbus
+
+I2C_BUS = 1
+
+LPC845_I2C_ADDR = 0x7E
+LPC845_OPCODE_WHOAMI = 0x01
+LPC845_OPCODE_VERSION = 0x02
+LPC845_OPCODE_ADC_HI = 0x11
+LPC845_OPCODE_ADC_LO = 0x12
+LPC845_OPCODE_ADC_STAT = 0x13
+
+# Declare an instance of the I2C bus
+bus = smbus.SMBus(I2C_BUS)
+
+# Check the WHOAMI register and read ADC if the co-processor was found
+whoami = bus.read_byte_data(LPC845_I2C_ADDR, LPC845_OPCODE_WHOAMI)
+if whoami != 0X45:
+    print("Unable to find the LPC845 I2C co-processor. Check pullups?")
+    sys.exit()
+
+# Read from the ADC every second until program execution stops
+while True:
+    adc_hi = bus.read_byte_data(LPC845_I2C_ADDR, LPC845_OPCODE_ADC_HI)
+    adc_lo = bus.read_byte_data(LPC845_I2C_ADDR, LPC845_OPCODE_ADC_LO)
+    adc = adc_hi<<8 | adc_lo
+    print("ADC Output: ", adc)
+    time.sleep(1.0)
+```
